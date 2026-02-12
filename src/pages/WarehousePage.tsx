@@ -22,6 +22,7 @@ import { cn } from '../lib/utils';
 interface StockLevel {
   id: string;
   name: string;
+  nome?: string;
   unit: string;
   scortaMinima: number;
   currentQuantity: number;
@@ -71,7 +72,7 @@ export function WarehousePage() {
   }
 
   const filteredStock = stock.filter(s => 
-    s.name.toLowerCase().includes(search.toLowerCase())
+    (s.name ?? s.nome ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   if (isBatchOpen) {

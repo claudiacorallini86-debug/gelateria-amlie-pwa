@@ -59,8 +59,8 @@ export function AuditLogPage() {
   };
 
   const filteredLogs = logs.filter(log => 
-    log.tabella.toLowerCase().includes(search.toLowerCase()) ||
-    log.azione.toLowerCase().includes(search.toLowerCase())
+    (log.tabella ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (log.azione ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (

@@ -21,10 +21,11 @@ import { logAudit } from '../lib/audit';
 export interface Recipe {
   id: string;
   name: string;
+  nome?: string;
   resaBatch: number;
-  batchYield?: number; // Add for compatibility
+  batchYield?: number;
   unitaResa: string;
-  yieldUnit?: string; // Add for compatibility
+  yieldUnit?: string;
   overheadPercent: number;
   prodottoId: string;
 }
@@ -105,7 +106,7 @@ export function RecipesPage() {
   }
 
   const filteredRecipes = recipes.filter(r => 
-    r.name.toLowerCase().includes(search.toLowerCase())
+    ((r.name ?? r.nome ?? '') as string).toLowerCase().includes(search.toLowerCase())
   );
 
   if (isBuilderOpen) {

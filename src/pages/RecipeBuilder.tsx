@@ -4,10 +4,9 @@ import {
   Plus, 
   Trash2, 
   Calculator, 
-  Euro, 
   Save,
   Search,
-  CheckCircle2
+  Package
 } from 'lucide-react';
 import { blink } from '../blink/client';
 import { Button } from '../components/ui/button';
@@ -17,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import { logAudit } from '../lib/audit';
-import type { Recipe, RecipeIngredient } from './RecipesPage';
+import type { Recipe } from './RecipesPage';
 
 interface Ingredient {
   id: string;
@@ -26,15 +25,29 @@ interface Ingredient {
   latestPrice?: number;
 }
 
+interface LotOption {
+  id: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantity: number;
+  unit: string;
+}
+
+function safe(val: any): string {
+  return (val ?? '').toString();
+}
+
 export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onClose: () => void }) {
-  const [name, setName] = useState(recipe?.name || '');
-  const [batchYield, setBatchYield] = useState(recipe?.batchYield || 1);
-  const [yieldUnit, setYieldUnit] = useState(recipe?.yieldUnit || 'kg');
+  const [name, setName] = useState(recipe?.name || recipe?.nome || '');
+  const [batchYield, setBatchYield] = useState(recipe?.batchYield || recipe?.resaBatch || 1);
+  const [yieldUnit, setYieldUnit] = useState(recipe?.yieldUnit || recipe?.unitaResa || 'kg');
   const [overheadPercent, setOverheadPercent] = useState(recipe?.overheadPercent || 0);
   
   const [selectedIngredients, setSelectedIngredients] = useState<any[]>([]);
   const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([]);
+  const [ingredientLots, setIngredientLots] = useState<Record<string, LotOption[]>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [ingredientSearch, setIngredientSearch] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -42,10 +55,8 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
 
   async function fetchData() {
     try {
-      // 1. Fetch all ingredients
       const ings = await blink.db.ingredienti.list() as any[];
       
-      // 2. For each ingredient, get latest price
       const ingsWithPrices = await Promise.all(ings.map(async (ing) => {
         const prices = await blink.db.prezzi_storico.list({
           where: { ingredienteId: ing.id },
@@ -54,27 +65,51 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
         });
         return {
           ...ing,
-          name: ing.nome,
-          unit: ing.unitaMisura,
-          latestPrice: prices[0]?.prezzoPerUnita || 0
+          name: safe(ing.nome),
+          unit: safe(ing.unitaMisura || ing.unita_misura),
+          latestPrice: prices[0]?.prezzoPerUnita ?? prices[0]?.prezzo_per_unita ?? 0
         };
       }));
       setAvailableIngredients(ingsWithPrices);
 
-      // 3. If editing, fetch recipe ingredients
+      // Fetch lots for all ingredients
+      const lotsMap: Record<string, LotOption[]> = {};
+      await Promise.all(ings.map(async (ing) => {
+        try {
+          const lots = await blink.db.ingredientLots.list({
+            where: { ingredientId: ing.id },
+            orderBy: { createdAt: 'desc' }
+          }) as any[];
+          if (lots.length > 0) {
+            lotsMap[ing.id] = lots.map(l => ({
+              id: l.id,
+              lotNumber: safe(l.lotNumber ?? l.lot_number),
+              expiryDate: safe(l.expiryDate ?? l.expiry_date),
+              quantity: Number(l.quantity ?? 0),
+              unit: safe(l.unit),
+            }));
+          }
+        } catch {
+          // no lots for this ingredient
+        }
+      }));
+      setIngredientLots(lotsMap);
+
+      // If editing, fetch recipe ingredients
       if (recipe) {
         const recipeIngs = await blink.db.ricetta_ingredienti.list({
           where: { ricettaId: recipe.id }
         });
         const mapped = recipeIngs.map((ri: any) => {
-          const ing = ingsWithPrices.find(i => i.id === ri.ingredienteId);
+          const ing = ingsWithPrices.find(i => i.id === (ri.ingredienteId ?? ri.ingrediente_id));
           return {
             id: ri.id,
-            ingredientId: ri.ingredienteId,
-            quantity: ri.quantita,
+            ingredientId: ri.ingredienteId ?? ri.ingrediente_id,
+            quantity: ri.quantita ?? ri.quantity,
             name: ing?.name || 'Sconosciuto',
-            unit: ri.unitaMisura || ing?.unit || '?',
-            price: ing?.latestPrice || 0
+            unit: safe(ri.unitaMisura ?? ri.unita_misura ?? ing?.unit),
+            price: Number(ing?.latestPrice ?? 0),
+            selectedLotId: '',
           };
         });
         setSelectedIngredients(mapped);
@@ -89,12 +124,14 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
       toast.error('Ingrediente già presente');
       return;
     }
+    const lots = ingredientLots[ing.id] || [];
     setSelectedIngredients([...selectedIngredients, {
       ingredientId: ing.id,
       quantity: 1,
       name: ing.name,
       unit: ing.unit,
-      price: ing.latestPrice || 0
+      price: ing.latestPrice || 0,
+      selectedLotId: lots.length > 0 ? lots[0].id : '',
     }]);
   };
 
@@ -105,6 +142,12 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
   const updateQuantity = (id: string, qty: number) => {
     setSelectedIngredients(selectedIngredients.map(si => 
       si.ingredientId === id ? { ...si, quantity: qty } : si
+    ));
+  };
+
+  const updateSelectedLot = (ingredientId: string, lotId: string) => {
+    setSelectedIngredients(selectedIngredients.map(si =>
+      si.ingredientId === ingredientId ? { ...si, selectedLotId: lotId } : si
     ));
   };
 
@@ -125,7 +168,7 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
         resaBatch: batchYield,
         unitaResa: yieldUnit,
         overheadPercent,
-        prodottoId: recipe?.prodottoId || '' // We should ideally select a product
+        prodottoId: recipe?.prodottoId || ''
       };
 
       let recipeId = recipe?.id;
@@ -139,7 +182,7 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
         await logAudit('create', 'recipe', res.id, recipeData);
       }
 
-      // Handle ingredients (Simple way: delete and recreate)
+      // Handle ingredients
       if (recipe) {
         const existing = await blink.db.ricetta_ingredienti.list({ where: { ricettaId: recipe.id } });
         for (const e of existing) {
@@ -164,6 +207,10 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
       setIsSaving(false);
     }
   }
+
+  const filteredAvailable = availableIngredients.filter(ing =>
+    safe(ing.name).toLowerCase().includes(ingredientSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right duration-500">
@@ -229,8 +276,9 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
                 <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-secondary/10">
                   <tr>
                     <th className="px-6 py-3 text-left">Ingrediente</th>
+                    <th className="px-6 py-3 text-left">Lotto</th>
                     <th className="px-6 py-3 text-left">Quantità</th>
-                    <th className="px-6 py-3 text-right">Costo Unitario</th>
+                    <th className="px-6 py-3 text-right">Costo Unit.</th>
                     <th className="px-6 py-3 text-right">Totale</th>
                     <th className="px-6 py-3"></th>
                   </tr>
@@ -238,42 +286,83 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
                 <tbody className="divide-y">
                   {selectedIngredients.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
+                      <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground italic">
                         Nessun ingrediente aggiunto. Selezionane uno dalla lista a destra.
                       </td>
                     </tr>
                   ) : (
-                    selectedIngredients.map((si) => (
-                      <tr key={si.ingredientId} className="hover:bg-secondary/5 transition-colors">
-                        <td className="px-6 py-4">
-                          <p className="font-bold">{si.name}</p>
-                          <p className="text-xs text-muted-foreground">per {si.unit}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 max-w-[120px]">
-                            <Input 
-                              type="number" 
-                              value={si.quantity} 
-                              onChange={(e) => updateQuantity(si.ingredientId, Number(e.target.value))}
-                              className="h-8"
-                            />
-                            <span className="text-xs font-medium">{si.unit}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm">€ {si.price.toFixed(2)}</td>
-                        <td className="px-6 py-4 text-right font-bold">€ {(si.price * si.quantity).toFixed(2)}</td>
-                        <td className="px-6 py-4 text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-destructive h-8 w-8"
-                            onClick={() => removeIngredient(si.ingredientId)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    selectedIngredients.map((si) => {
+                      const lots = ingredientLots[si.ingredientId] || [];
+                      const selectedLot = lots.find(l => l.id === si.selectedLotId);
+                      return (
+                        <tr key={si.ingredientId} className="hover:bg-secondary/5 transition-colors">
+                          <td className="px-6 py-4">
+                            <p className="font-bold">{safe(si.name)}</p>
+                            <p className="text-xs text-muted-foreground">per {safe(si.unit)}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            {lots.length === 0 ? (
+                              <span className="text-xs text-muted-foreground italic">Nessun lotto</span>
+                            ) : lots.length === 1 ? (
+                              <div className="text-xs">
+                                <Badge variant="outline" className="gap-1">
+                                  <Package className="h-3 w-3" />
+                                  {lots[0].lotNumber}
+                                </Badge>
+                                {lots[0].expiryDate && (
+                                  <p className="text-muted-foreground mt-1">
+                                    Scad: {new Date(lots[0].expiryDate).toLocaleDateString('it-IT')}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <div>
+                                <select
+                                  value={si.selectedLotId}
+                                  onChange={(e) => updateSelectedLot(si.ingredientId, e.target.value)}
+                                  className="w-full h-8 rounded-lg border border-input bg-background px-2 text-xs"
+                                >
+                                  <option value="">Seleziona lotto...</option>
+                                  {lots.map(l => (
+                                    <option key={l.id} value={l.id}>
+                                      {l.lotNumber} — Scad: {l.expiryDate ? new Date(l.expiryDate).toLocaleDateString('it-IT') : 'N/D'} ({l.quantity} {l.unit})
+                                    </option>
+                                  ))}
+                                </select>
+                                {selectedLot && (
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    Disponibile: {selectedLot.quantity} {selectedLot.unit}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 max-w-[120px]">
+                              <Input 
+                                type="number" 
+                                value={si.quantity} 
+                                onChange={(e) => updateQuantity(si.ingredientId, Number(e.target.value))}
+                                className="h-8"
+                              />
+                              <span className="text-xs font-medium">{safe(si.unit)}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right text-sm">€ {Number(si.price ?? 0).toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right font-bold">€ {(Number(si.price ?? 0) * Number(si.quantity ?? 0)).toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-destructive h-8 w-8"
+                              onClick={() => removeIngredient(si.ingredientId)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -281,7 +370,7 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
           </Card>
         </div>
 
-        {/* Sidebar: Calculator & Add Ingredients */}
+        {/* Sidebar */}
         <div className="space-y-6">
           <Card className="border-none shadow-elegant bg-primary text-primary-foreground overflow-hidden">
             <CardHeader className="pb-2">
@@ -317,24 +406,40 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
               <CardTitle className="text-lg">Aggiungi Ingredienti</CardTitle>
               <div className="relative mt-2">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Cerca..." className="pl-8 h-9 text-xs" />
+                <Input 
+                  placeholder="Cerca..." 
+                  className="pl-8 h-9 text-xs" 
+                  value={ingredientSearch}
+                  onChange={(e) => setIngredientSearch(e.target.value)}
+                />
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto pt-0">
               <div className="space-y-1">
-                {availableIngredients.map((ing) => (
-                  <button
-                    key={ing.id}
-                    onClick={() => addIngredient(ing)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/50 text-left transition-colors group"
-                  >
-                    <div>
-                      <p className="text-sm font-bold group-hover:text-primary transition-colors">{ing.name}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">€ {ing.latestPrice?.toFixed(2)} / {ing.unit}</p>
-                    </div>
-                    <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
+                {filteredAvailable.map((ing) => {
+                  const lots = ingredientLots[ing.id] || [];
+                  const latestLot = lots[0];
+                  return (
+                    <button
+                      key={ing.id}
+                      onClick={() => addIngredient(ing)}
+                      className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-secondary/50 text-left transition-colors group"
+                    >
+                      <div>
+                        <p className="text-sm font-bold group-hover:text-primary transition-colors">{safe(ing.name)}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">€ {Number(ing.latestPrice ?? 0).toFixed(2)} / {safe(ing.unit)}</p>
+                        {latestLot && (
+                          <p className="text-[10px] text-primary/70 flex items-center gap-1 mt-0.5">
+                            <Package className="h-2.5 w-2.5" />
+                            Lotto: {latestLot.lotNumber}
+                            {latestLot.expiryDate && ` — Scad: ${new Date(latestLot.expiryDate).toLocaleDateString('it-IT')}`}
+                          </p>
+                        )}
+                      </div>
+                      <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
