@@ -27,36 +27,7 @@ import { toast } from 'sonner';
 import { logAudit } from '../lib/audit';
 import { OcrImporter } from '../components/OcrImporter';
 import { cn } from '../lib/utils';
-
-interface Ingredient {
-  id: string;
-  nome: string;
-  categoria: string;
-  fornitorePredefinito: string;
-  unitaMisura: string;
-  conservazione: string;
-  allergeni: string;
-  scortaMinima: number;
-  fotoUrl?: string;
-}
-
-interface PriceRecord {
-  id: string;
-  ingredienteId: string;
-  dataAcquisto: string;
-  fornitore: string;
-  prezzoPerUnita: number;
-  riferimentoDocumento: string;
-}
-
-interface LotRecord {
-  id: string;
-  ingredientId: string;
-  lotNumber: string;
-  expiryDate: string;
-  quantity: number;
-  unit: string;
-}
+import { Ingredient, PriceRecord, LotRecord } from '@/types/database';
 
 // Safe lowercase helper
 function safe(val: any): string {

@@ -52,19 +52,21 @@ export function Dashboard() {
       });
 
       // 3. Expiring Lots (next 7 days)
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
-      const nextWeekIso = nextWeek.toISOString().split('T')[0];
+      nextWeek.setHours(23, 59, 59, 999);
       
-      const lotsExpiring = await blink.db.lotti_ingredienti.list({
-        where: { 
-          AND: [
-            { dataScadenza: { lte: nextWeekIso } },
-            { quantitaAttuale: { gt: 0 } }
-          ]
-        },
-        limit: 5
+      const allLots = await blink.db.lotti_ingredienti.list({
+        orderBy: { data_scadenza: 'asc' }
       });
+      
+      const lotsExpiring = allLots.filter(lot => {
+        const expiryDate = new Date(lot.dataScadenza);
+        return expiryDate >= startOfDay && expiryDate <= nextWeek;
+      }).slice(0, 5);
 
       // 4. HACCP Today
       const haccpCount = await blink.db.haccp_temperature.count({
@@ -74,7 +76,7 @@ export function Dashboard() {
       setStats([
         { label: 'Produzione Oggi', value: `${productionToday} Batch`, icon: TrendingUp, color: 'text-blue-500' },
         { label: 'Scorte Basse', value: `${lowStockCount} Ingredienti`, icon: AlertTriangle, color: 'text-amber-500' },
-        { label: 'Lotti in Scadenza', value: `${lotsExpiring.length} Lotti`, icon: Calendar, color: 'text-rose-500' },
+         { label: 'Lotti in Scadenza', value: `${lotsExpiring.length} Lotti`, icon: Calendar, color: 'text-rose-500' },
         { label: 'HACCP Oggi', value: haccpCount > 0 ? 'Registrato' : 'Da fare', icon: PackageCheck, color: haccpCount > 0 ? 'text-emerald-500' : 'text-rose-500' },
       ]);
 
@@ -180,7 +182,7 @@ export function Dashboard() {
                       <div className="h-10 w-10 rounded-lg bg-background flex items-center justify-center">📦</div>
                       <div>
                         <p className="font-medium text-sm">{lot.ingredient?.nome || 'Sconosciuto'}</p>
-                        <p className="text-xs text-muted-foreground">Scade il {new Date(lot.data_scadenza).toLocaleDateString('it-IT')}</p>
+                        <p className="text-xs text-muted-foreground">Scade il {new Date(lot.dataScadenza).toLocaleDateString('it-IT')}</p>
                       </div>
                     </div>
                     <p className="text-xs font-medium text-rose-500 uppercase tracking-wider">Urgente</p>

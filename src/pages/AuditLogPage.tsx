@@ -13,16 +13,9 @@ import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
+import { AuditLog } from '@/types/database';
 
-interface AuditLog {
-  id: string;
-  azione: string;
-  tabella: string;
-  recordId: string;
-  dettagli: string;
-  dataOra: string;
-  userId: string;
-}
+
 
 export function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);

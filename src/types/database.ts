@@ -1,3 +1,70 @@
+
+export interface TempLog {
+  id: string;
+  attrezzatura: string;
+  temperatura: number;
+  dataOra: string;
+  note: string;
+  operatore?: string;
+  limite_max?: number;
+  limite_min?: number;
+  stato?: string;
+  turno?: string;
+  motivoAnnullamento?: string;
+}
+
+export interface CleanLog {
+  id: string;
+  area: string;
+  compito: string;
+  frequenza?: string;
+  eseguito: boolean;
+  dataOra: string;
+  operatore?: string;
+  note: string;
+  stato?: string;
+  turno?: string;
+  motivoAnnullamento?: string;
+}
+
+export interface Ingredient {
+  id: string;
+  nome: string;
+  categoria: string;
+  fornitorePredefinito: string;
+  unitaMisura: string;
+  conservazione: string;
+  allergeni: string;
+  scortaMinima: number;
+  fotoUrl?: string;
+}
+
+export interface PriceRecord {
+  id: string;
+  ingredienteId: string;
+  dataAcquisto: string;
+  fornitore: string;
+  prezzoPerUnita: number;
+  riferimentoDocumento: string;
+}
+
+export interface LotRecord {
+  id: string;
+  ingredientId: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface LotOption {
+  id: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface Ingrediente {
   id: string;
   userId: string;
@@ -50,7 +117,7 @@ export interface PrezzoStorico {
   ingredienteId: string;
   dataAcquisto: string;
   fornitore?: string;
-  prezzoPerUnita: number;
+  prezzoPerUnita?: number;
   riferimentoDocumento?: string;
   fotoDocumentoUrl?: string;
   note?: string;

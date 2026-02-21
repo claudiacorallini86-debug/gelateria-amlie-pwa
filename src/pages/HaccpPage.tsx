@@ -33,34 +33,8 @@ import 'jspdf-autotable';
 import { cn } from '../lib/utils';
 import { HaccpAutoFill } from '../components/HaccpAutoFill';
 import { Badge } from '../components/ui/badge';
+import { TempLog, CleanLog } from '@/types/database';
 
-interface TempLog {
-  id: string;
-  attrezzatura: string;
-  temperatura: number;
-  data_ora: string;
-  note: string;
-  operatore?: string;
-  limite_max?: number;
-  limite_min?: number;
-  stato?: string;
-  turno?: string;
-  motivoAnnullamento?: string;
-}
-
-interface CleanLog {
-  id: string;
-  area: string;
-  compito: string;
-  frequenza?: string;
-  eseguito: boolean;
-  data_ora: string;
-  operatore?: string;
-  note: string;
-  stato?: string;
-  turno?: string;
-  motivoAnnullamento?: string;
-}
 
 export function HaccpPage() {
   const [tempLogs, setTempLogs] = useState<TempLog[]>([]);
@@ -112,7 +86,7 @@ export function HaccpPage() {
       temperatura: Number(formData.get('temperatura')),
       note: formData.get('note') as string,
       operatore: user?.displayName || user?.email,
-      data_ora: editingTemp ? editingTemp.data_ora : new Date().toISOString(),
+      dataOra: editingTemp ? editingTemp.dataOra : new Date().toISOString(),
       turno: formData.get('turno') as string,
       stato: editingTemp?.stato || 'registrato'
     };
@@ -145,7 +119,7 @@ export function HaccpPage() {
       eseguito: true,
       operatore: user?.displayName || user?.email,
       note: formData.get('note') as string,
-      data_ora: editingClean ? editingClean.data_ora : new Date().toISOString(),
+      dataOra: editingClean ? editingClean.dataOra : new Date().toISOString(),
       turno: formData.get('turno') as string,
       stato: editingClean?.stato || 'registrato'
     };
@@ -225,8 +199,8 @@ export function HaccpPage() {
       : ["Data", "Ora", "Turno", "Attività", "Area", "Note"];
 
     const rows = data.map(log => {
-      const date = new Date(log.data_ora).toLocaleDateString('it-IT');
-      const time = new Date(log.data_ora).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+      const date = new Date(log.dataOra).toLocaleDateString('it-IT');
+      const time = new Date(log.dataOra).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
       if (type === 'temp') {
         const t = log as TempLog;
         return [date, time, t.turno || '-', t.attrezzatura, `${t.temperatura.toFixed(1)}°C`, t.note || ''];
@@ -250,7 +224,7 @@ export function HaccpPage() {
   const groupLogsByDate = (logs: (TempLog | CleanLog)[]) => {
     const groups: { [key: string]: any[] } = {};
     logs.forEach(log => {
-      const date = log.data_ora.split('T')[0];
+      const date = log.dataOra.split('T')[0];
       if (!groups[date]) groups[date] = [];
       groups[date].push(log);
     });
@@ -336,9 +310,9 @@ export function HaccpPage() {
                               {log.turno && <Badge variant="outline" className="text-[10px] py-0">{log.turno}</Badge>}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(log.data_ora).toLocaleDateString('it-IT')}
+                              {new Date(log.dataOra).toLocaleDateString('it-IT')}
                               {" - "}
-                              {new Date(log.data_ora).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(log.dataOra).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                             {log.motivoAnnullamento && (
                               <p className="text-[10px] text-destructive italic mt-1">Annullato: {log.motivoAnnullamento}</p>
@@ -480,9 +454,9 @@ export function HaccpPage() {
                               {log.turno && <Badge variant="outline" className="text-[10px] py-0">{log.turno}</Badge>}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(log.data_ora).toLocaleDateString('it-IT')}
+                              {new Date(log.dataOra).toLocaleDateString('it-IT')}
                               {" - "}
-                              {new Date(log.data_ora).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(log.dataOra).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                             {log.motivoAnnullamento && (
                               <p className="text-[10px] text-destructive italic mt-1">Annullato: {log.motivoAnnullamento}</p>
@@ -543,7 +517,7 @@ export function HaccpPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Data di Riferimento</Label>
-                <Input name="data_ora" type="datetime-local" required defaultValue={editingTemp?.data_ora ? new Date(editingTemp.data_ora).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} />
+                <Input name="dataOra" type="datetime-local" required defaultValue={editingTemp?.dataOra ? new Date(editingTemp.dataOra).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} />
               </div>
               <div className="space-y-2">
                 <Label>Turno</Label>
@@ -586,7 +560,7 @@ export function HaccpPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Data di Riferimento</Label>
-                <Input name="data_ora" type="datetime-local" required defaultValue={editingClean?.data_ora ? new Date(editingClean.data_ora).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} />
+                <Input name="dataOra" type="datetime-local" required defaultValue={editingClean?.dataOra ? new Date(editingClean.dataOra).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)} />
               </div>
               <div className="space-y-2">
                 <Label>Turno</Label>
@@ -600,6 +574,10 @@ export function HaccpPage() {
             <div className="space-y-2">
               <Label>Attività di Pulizia</Label>
               <Input name="compito" required defaultValue={editingClean?.compito} placeholder="es. Lavaggio Mantecatore, Sanificazione Superfici..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Area</Label>
+              <Input name="area" required defaultValue={editingClean?.area} placeholder="es. Lavaggio Mantecatore, Sanificazione Superfici..." />
             </div>
             <div className="space-y-2">
               <Label>Note</Label>
