@@ -163,16 +163,20 @@ export function RecipeBuilder({ recipe, onClose }: { recipe: Recipe | null, onCl
 
     try {
       setIsSaving(true);
-      const recipeData = {
+      const recipeData: Record<string, any> = {
         name,
         resaBatch: batchYield,
         unitaResa: yieldUnit,
         overheadPercent,
-        prodottoId: recipe?.prodottoId || '',
         costoIngredienti: totalCost,
         costoOverhead: costWithOverhead,
         costoPerUnita: costPerUnit,
       };
+      // Solo se prodottoId è un ID valido (non vuoto), lo includiamo
+      // altrimenti la FK constraint fallisce
+      if (recipe?.prodottoId) {
+        recipeData.prodottoId = recipe.prodottoId;
+      }
 
       let recipeId = recipe?.id;
 
