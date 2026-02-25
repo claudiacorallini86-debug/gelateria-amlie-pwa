@@ -72,10 +72,14 @@ export interface Prodotto {
 export interface Ricette {
   id: string;
   userId: string;
+  name?: string;
   prodottoId: string;
   resaBatch: number;
   unitaResa: string;
   overheadPercent?: number;
+  costoIngredienti?: number;
+  costoOverhead?: number;
+  costoPerUnita?: number;
   note?: string;
   createdAt: string;
   updatedAt: string;

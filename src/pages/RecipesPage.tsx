@@ -13,7 +13,7 @@ import { blink } from '../blink/client';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/badge';
+
 import { toast } from 'sonner';
 import { RecipeBuilder } from './RecipeBuilder';
 import { logAudit } from '../lib/audit';
@@ -28,6 +28,9 @@ export interface Recipe {
   yieldUnit?: string;
   overheadPercent: number;
   prodottoId: string;
+  costoIngredienti?: number;
+  costoOverhead?: number;
+  costoPerUnita?: number;
 }
 
 export interface RecipeIngredient {
@@ -44,7 +47,6 @@ export function RecipesPage() {
   const [search, setSearch] = useState('');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<any | null>(null);
-  const [foodCosts, setFoodCosts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchRecipes();
@@ -57,29 +59,6 @@ export function RecipesPage() {
         orderBy: { name: 'asc' }
       });
       setRecipes(data);
-      
-      // Calculate food costs for each recipe
-      const costs: Record<string, number> = {};
-      for (const recipe of data) {
-        const ingredients = await blink.db.ricetta_ingredienti.list({
-          where: { ricettaId: recipe.id }
-        });
-        
-        let recipeTotal = 0;
-        for (const ri of ingredients) {
-          const prices = await blink.db.prezzi_storico.list({
-            where: { ingredienteId: ri.ingredienteId },
-            orderBy: { dataAcquisto: 'desc' },
-            limit: 1
-          });
-          const price = prices[0]?.prezzoPerUnita || 0;
-          recipeTotal += price * ri.quantita;
-        }
-        
-        const totalWithOverhead = recipeTotal * (1 + (recipe.overheadPercent / 100));
-        costs[recipe.id] = recipe.resaBatch > 0 ? totalWithOverhead / recipe.resaBatch : 0;
-      }
-      setFoodCosts(costs);
     } catch (error) {
       toast.error('Errore nel caricamento delle ricette');
     } finally {
@@ -171,22 +150,38 @@ export function RecipesPage() {
                     <p className="text-sm text-muted-foreground">Resa: {recipe.resaBatch} {recipe.unitaResa}</p>
                   </div>
 
-                  <div className="pt-4 border-t flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calculator className="h-4 w-4 text-primary" />
-                      <span className="font-medium">Food Cost:</span>
-                      <span className="text-primary font-bold italic">
-                        {foodCosts[recipe.id] ? `€ ${foodCosts[recipe.id].toFixed(2)} / ${recipe.unitaResa}` : 'N/D'}
-                      </span>
+                  <div className="pt-4 border-t space-y-3">
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Ingredienti</p>
+                        <p className="font-bold">€ {Number(recipe.costoIngredienti ?? 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">+ Overhead</p>
+                        <p className="font-bold">€ {Number(recipe.costoOverhead ?? 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">per {recipe.unitaResa}</p>
+                        <p className="font-bold text-primary">€ {Number(recipe.costoPerUnita ?? 0).toFixed(2)}</p>
+                      </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-primary gap-1 p-0 hover:bg-transparent"
-                      onClick={() => { setEditingRecipe(recipe); setIsBuilderOpen(true); }}
-                    >
-                      Dettagli <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calculator className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Food Cost:</span>
+                        <span className="text-primary font-bold italic">
+                          € {Number(recipe.costoPerUnita ?? 0).toFixed(2)} / {recipe.unitaResa}
+                        </span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-primary gap-1 p-0 hover:bg-transparent"
+                        onClick={() => { setEditingRecipe(recipe); setIsBuilderOpen(true); }}
+                      >
+                        Dettagli <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
