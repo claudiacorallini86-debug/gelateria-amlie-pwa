@@ -209,26 +209,33 @@ export function RecipeBuilder({
 
     try {
       setIsSaving(true);
-      const recipeData = {
+      const recipeData: Record<string, any> = {
         name,
         resaBatch: batchYield,
         unitaResa: yieldUnit,
         overheadPercent,
-        prodottoId: selectedIngredients?.map((si) => si.id) || "",
+        costoIngredienti: totalCost,
+        costoOverhead: costWithOverhead,
+        costoPerUnita: costPerUnit,
       };
+      // Solo se prodottoId è un ID valido (non vuoto), lo includiamo
+      // altrimenti la FK constraint fallisce
+      if (recipe?.prodottoId) {
+        recipeData.prodottoId = recipe.prodottoId;
+      }
 
       let recipeId = recipe?.id;
 
       if (recipe) {
         await blink.db.ricette.update(recipe.id, recipeData);
-        await logAudit("update", "recipe", recipe.id, recipeData);
+        await logAudit('update', 'ricette', recipe.id, recipeData);
       } else {
         const res = await blink.db.ricette.create(recipeData);
         recipeId = res.id;
-        await logAudit("create", "recipe", res.id, recipeData);
+        await logAudit('create', 'ricette', res.id, recipeData);
       }
 
-      // Handle ingredients
+      // Handle ingredients - delete existing, then recreate all
       if (recipe) {
         const existing = await blink.db.ricetta_ingredienti.list({
           where: { ricettaId: recipe.id },
@@ -251,7 +258,8 @@ export function RecipeBuilder({
       toast.success("Ricetta salvata con successo");
       onClose();
     } catch (error) {
-      toast.error("Errore nel salvataggio");
+      console.error('Save error:', error);
+      toast.error('Errore nel salvataggio');
     } finally {
       setIsSaving(false);
     }
