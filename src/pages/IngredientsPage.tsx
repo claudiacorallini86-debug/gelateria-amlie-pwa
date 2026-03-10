@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import { logAudit } from '../lib/audit';
 import { OcrImporter } from '../components/OcrImporter';
 import { cn } from '../lib/utils';
-import { Ingredient, PriceRecord, LotRecord } from '@/types/database';
+import { Ingrediente, PriceRecord, LotRecord } from '@/types/database';
 
 // Safe lowercase helper
 function safe(val: any): string {
@@ -35,18 +35,18 @@ function safe(val: any): string {
 }
 
 export function IngredientsPage() {
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [ingredients, setIngredients] = useState<Ingrediente[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Tutti');
   
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+  const [editingIngredient, setEditingIngredient] = useState<Ingrediente | null>(null);
   
-  const [viewingPrices, setViewingPrices] = useState<Ingredient | null>(null);
+  const [viewingPrices, setViewingPrices] = useState<Ingrediente | null>(null);
   const [priceHistory, setPriceHistory] = useState<PriceRecord[]>([]);
   
-  const [viewingLots, setViewingLots] = useState<Ingredient | null>(null);
+  const [viewingLots, setViewingLots] = useState<Ingrediente | null>(null);
   const [lotHistory, setLotHistory] = useState<LotRecord[]>([]);
   const [isLotAddOpen, setIsLotAddOpen] = useState(false);
 

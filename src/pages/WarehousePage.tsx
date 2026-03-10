@@ -23,7 +23,7 @@ import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import { BatchManagement } from "./BatchManagement";
 import { cn } from "../lib/utils";
-import { Ingredient, MovimentoMagazzino } from "@/types/database";
+import { Ingrediente, MovimentoMagazzino } from "@/types/database";
 import { Label } from "@radix-ui/react-label";
 
 interface StockLevel {
@@ -49,7 +49,7 @@ export function WarehousePage() {
     try {
       setLoading(true);
       // 1. Fetch ingredients
-      const ingredients = (await blink.db.ingredienti.list()) as Ingredient[];
+      const ingredients = (await blink.db.ingredienti.list()) as Ingrediente[];
 
       // 2. Fetch all inventory movements
       const movements =

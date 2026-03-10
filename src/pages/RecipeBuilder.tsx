@@ -22,7 +22,7 @@ import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import { logAudit } from "../lib/audit";
 import type { Recipe } from "./RecipesPage";
-import { Ingredient, LotOption, PrezzoStorico } from "@/types/database";
+import { Ingrediente, LotOption, PrezzoStorico } from "@/types/database";
 
 function safe(val: any): string {
   return (val ?? "").toString();
@@ -47,7 +47,7 @@ export function RecipeBuilder({
     recipe?.overheadPercent || 0,
   );
 
-  const [selectedIngredients, setSelectedIngredients] = useState<Ingredient[]>(
+  const [selectedIngredients, setSelectedIngredients] = useState<Ingrediente[]>(
     [],
   );
 
@@ -55,7 +55,7 @@ export function RecipeBuilder({
     Record<string, PrezzoStorico>
   >({});
   const [availableIngredients, setAvailableIngredients] = useState<
-    Ingredient[]
+    Ingrediente[]
   >([]);
   const [ingredientLots, setIngredientLots] = useState<
     Record<string, LotOption[]>
@@ -69,7 +69,7 @@ export function RecipeBuilder({
 
   async function fetchData() {
     try {
-      const ings = (await blink.db.ingredienti.list()) as Ingredient[];
+      const ings = (await blink.db.ingredienti.list()) as Ingrediente[];
 
       const ingsWithPrices = await Promise.all(
         ings.map(async (ing) => {
@@ -155,7 +155,7 @@ export function RecipeBuilder({
     }
   }
 
-  const addIngredient = (ing: Ingredient) => {
+  const addIngredient = (ing: Ingrediente) => {
     if (selectedIngredients.some((si) => si.id === ing.id)) {
       toast.error("Ingrediente già presente");
       return;
@@ -197,9 +197,9 @@ export function RecipeBuilder({
     );
   };
 
-  // const totalCost = selectedIngredients.reduce((sum, si) => sum + (si.price * si.scortaMinima), 0);
-  // const costWithOverhead = totalCost * (1 + (overheadPercent / 100));
-  // const costPerUnit = batchYield > 0 ? costWithOverhead / batchYield : 0;
+  const totalCost = selectedIngredients.reduce((sum, si) => sum + (lastPricesByIngredientId[si.id]?.prezzoPerUnita ?? 0) * si.scortaMinima, 0);
+  const costWithOverhead = totalCost * (1 + (overheadPercent / 100));
+  const costPerUnit = batchYield > 0 ? costWithOverhead / batchYield : 0;
 
   async function handleSave() {
     if (!name || selectedIngredients.length === 0) {
@@ -214,7 +214,7 @@ export function RecipeBuilder({
         resaBatch: batchYield,
         unitaResa: yieldUnit,
         overheadPercent,
-        prodottoId: recipe?.prodottoId || "",
+        prodottoId: selectedIngredients?.map((si) => si.id) || "",
       };
 
       let recipeId = recipe?.id;
@@ -348,7 +348,7 @@ export function RecipeBuilder({
                   ) : (
                     selectedIngredients.map((si) => {
                       const lots = ingredientLots[si.id] || [];
-                      // const selectedLot = lots.find(l => l.id === si.selectedLotId);
+                      const selectedLot = lots.find(l => l.id === si.id);
                       const selectedPrice: PrezzoStorico | undefined =
                         lastPricesByIngredientId[si.id];
                       return (
@@ -385,7 +385,7 @@ export function RecipeBuilder({
                             ) : (
                               <div>
                                 <select
-                                  value={si.id} // si.selectedLotId
+                                  value={selectedLot?.id} // si.selectedLotId
                                   onChange={(e) =>
                                     updateSelectedLot(si.id, e.target.value)
                                   }
@@ -404,11 +404,11 @@ export function RecipeBuilder({
                                     </option>
                                   ))}
                                 </select>
-                                {/* {selectedLot && (
+                                {selectedLot && (
                                   <p className="text-[10px] text-muted-foreground mt-1">
                                     Disponibile: {selectedLot.quantity} {selectedLot.unit}
                                   </p>
-                                )} */}
+                                )}
                               </div>
                             )}
                           </td>
@@ -435,7 +435,7 @@ export function RecipeBuilder({
                           <td className="px-6 py-4 text-right font-bold">
                             €{" "}
                             {(
-                              Number(selectedPrice?.prezzoPerUnita ?? 0) *
+                               Number(selectedPrice?.prezzoPerUnita ?? 0) *
                               Number(si.scortaMinima ?? 0)
                             ).toFixed(2)}
                           </td>
@@ -472,19 +472,19 @@ export function RecipeBuilder({
                 <p className="text-xs text-white/70 uppercase">
                   Costo Ingredienti
                 </p>
-                {/* <p className="text-2xl font-bold italic">€ {totalCost.toFixed(2)}</p> */}
+                <p className="text-2xl font-bold italic">€ {totalCost.toFixed(2)}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-white/70 uppercase">
                   Costo con Overhead ({overheadPercent}%)
                 </p>
-                {/* <p className="text-xl font-bold italic text-accent">€ {costWithOverhead.toFixed(2)}</p> */}
+                <p className="text-xl font-bold italic text-accent">€ {costWithOverhead.toFixed(2)}</p>
               </div>
               <div className="pt-4 border-t border-white/20">
                 <p className="text-xs text-white/70 uppercase">
                   Costo per {yieldUnit}
                 </p>
-                {/* <p className="text-3xl font-black italic">€ {costPerUnit.toFixed(2)}</p> */}
+                <p className="text-3xl font-black italic">€ {costPerUnit.toFixed(2)}</p>
               </div>
               <Button
                 onClick={handleSave}
@@ -526,7 +526,7 @@ export function RecipeBuilder({
                           {safe(ing.nome)}
                         </p>
                         <p className="text-[10px] text-muted-foreground uppercase">
-                          € {safe(ing.unitaMisura)}
+                          € {safe(ing.unitaMisura)} {Number(lots.find(l => l.id === ing.id)?.quantity ?? 0).toFixed(2)}
                         </p>
                         {/* {Number(ing.latestPrice ?? 0).toFixed(2)}  aggiungere sopra */}
                         {latestLot && (
