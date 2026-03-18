@@ -91,15 +91,11 @@ export function NewProductionBatch({ onClose }: { onClose: () => void }) {
           if (ing) info[item.ingredienteId] = ing;
 
           // Find batches with stock > 0
-          const batchDetails = await blink.db.lotti_ingredienti.list({
-            where: {
-              AND: [
-                { ingredienteId: item.ingredienteId },
-                { quantitaAttuale: { gt: 0 } }
-              ]
-            },
+          const allBatchDetails = await blink.db.lotti_ingredienti.list({
+            where: { ingredienteId: item.ingredienteId },
             orderBy: { dataScadenza: 'asc' }
           });
+          const batchDetails = allBatchDetails.filter((b: any) => Number(b.quantitaAttuale ?? 0) > 0);
           
           batches[item.ingredienteId] = batchDetails.map(b => ({
             ...b,

@@ -56,15 +56,12 @@ export function Dashboard() {
       nextWeek.setDate(nextWeek.getDate() + 7);
       const nextWeekIso = nextWeek.toISOString().split('T')[0];
       
-      const lotsExpiring = await blink.db.lotti_ingredienti.list({
-        where: { 
-          AND: [
-            { dataScadenza: { lte: nextWeekIso } },
-            { quantitaAttuale: { gt: 0 } }
-          ]
-        },
-        limit: 5
+      // Fetch lots expiring within 7 days with stock > 0
+      const allLotsExpiring = await blink.db.lotti_ingredienti.list({
+        where: { dataScadenza: { lte: nextWeekIso } },
+        limit: 20
       });
+      const lotsExpiring = allLotsExpiring.filter((l: any) => Number(l.quantitaAttuale ?? 0) > 0).slice(0, 5);
 
       // 4. HACCP Today
       const haccpCount = await blink.db.haccp_temperature.count({
